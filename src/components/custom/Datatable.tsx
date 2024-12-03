@@ -136,7 +136,21 @@ export const columns: ColumnDef<Todo>[] = [
   },
 ];
 
+import { api } from "@/trpc/react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { type z } from "zod";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  deleteManyTodoSchema,
+  deleteTodoSchema,
+} from "@/lib/schemas/todo-schema";
+import { Form } from "@/components/ui/form";
+
 export default function Datatable({ data }: { data: Todo[] }) {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = React.useState(false);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
@@ -165,6 +179,36 @@ export default function Datatable({ data }: { data: Todo[] }) {
     },
   });
 
+  const [selectedData, setSelectedData] = React.useState<number[]>([]);
+
+  React.useEffect(() => {
+    setSelectedData(
+      Object.keys(rowSelection)
+        .map((row) => parseInt(row, 10))
+        .map((idx) => (data[idx] ? data[idx].id : 0)),
+    );
+  }, [data, rowSelection]);
+
+  const deleteManyMutation = api.todo.deleteMany.useMutation({
+    onSuccess: () => {
+      toast.success("Todo delete many successfully");
+      router.push("/dashboard");
+      setSelectedData([]);
+      setIsLoading(false);
+    },
+    onError: (error) => {
+      toast.error(
+        error.message || "Something went wrong. Please try again later",
+      );
+      setIsLoading(false);
+    },
+  });
+
+  const handlerDeleteMany = async () => {
+    setIsLoading(true);
+    await deleteManyMutation.mutateAsync({ id: selectedData });
+  };
+
   return (
     <div className="w-full">
       <div className="flex items-center gap-2 py-4">
@@ -178,6 +222,14 @@ export default function Datatable({ data }: { data: Todo[] }) {
         />
         <DropdownMenu>
           <div className="flex w-full justify-end gap-2">
+            <Button
+              variant={"destructive"}
+              disabled={selectedData.length <= 0}
+              onClick={handlerDeleteMany}
+              isLoading={isLoading}
+            >
+              Delete
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline">Add Data</Button>

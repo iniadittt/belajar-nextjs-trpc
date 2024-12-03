@@ -5,7 +5,9 @@ import {
   addTodoSchema,
   updateTodoSchema,
   deleteTodoSchema,
+  deleteManyTodoSchema,
 } from "@/lib/schemas/todo-schema";
+import { Todo } from "@prisma/client";
 
 export const RouterTodo = createTRPCRouter({
   get: publicProcedure
@@ -67,5 +69,26 @@ export const RouterTodo = createTRPCRouter({
       }
       const deleteTodo = await ctx.db.todo.delete({ where: { id: input.id } });
       return deleteTodo;
+    }),
+
+  deleteMany: publicProcedure
+    .input(deleteManyTodoSchema)
+    .mutation(async ({ input, ctx }) => {
+      const ids = input.id;
+      return ctx.db.$transaction(async (tx) => {
+        const DELETE_DATA: Todo[] = [];
+        for (const id of ids) {
+          const todo = await tx.todo.findUnique({ where: { id } });
+          if (!todo) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Todo is not exist",
+            });
+          }
+          const DEL: Todo = await ctx.db.todo.delete({ where: { id } });
+          DELETE_DATA.push(DEL);
+        }
+        return DELETE_DATA;
+      });
     }),
 });

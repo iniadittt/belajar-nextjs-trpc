@@ -14,3 +14,7 @@ export const updateTodoSchema = z.object({
 export const deleteTodoSchema = z.object({
   id: z.number(),
 });
+
+export const deleteManyTodoSchema = z.object({
+  id: z.array(z.number()),
+});
